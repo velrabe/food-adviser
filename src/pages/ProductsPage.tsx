@@ -31,7 +31,12 @@ type ProductGridRow = {
   category: ProductCategory
   portion_label: string
   price: string
-  pick_weight: string
+  /** 0–100, пусто = 50 */
+  pick_score: string
+  pick_breakfast: string
+  pick_lunch: string
+  pick_dinner: string
+  pick_snack: string
   calories: string
   protein: string
   fat: string
@@ -56,7 +61,11 @@ function emptyGridRow(): ProductGridRow {
     category: 'protein',
     portion_label: '100 g',
     price: '0',
-    pick_weight: '1',
+    pick_score: '50',
+    pick_breakfast: '',
+    pick_lunch: '',
+    pick_dinner: '',
+    pick_snack: '',
     calories: '0',
     protein: '0',
     fat: '0',
@@ -78,7 +87,11 @@ function serverRowToGrid(r: ProductRow): ProductGridRow {
     category: r.category,
     portion_label: r.portion_label,
     price: String(r.price),
-    pick_weight: String(r.pick_weight ?? 1),
+    pick_score: String(r.pick_score ?? 50),
+    pick_breakfast: r.pick_breakfast != null ? String(r.pick_breakfast) : '',
+    pick_lunch: r.pick_lunch != null ? String(r.pick_lunch) : '',
+    pick_dinner: r.pick_dinner != null ? String(r.pick_dinner) : '',
+    pick_snack: r.pick_snack != null ? String(r.pick_snack) : '',
     calories: String(r.calories),
     protein: String(r.protein),
     fat: String(r.fat),
@@ -91,12 +104,20 @@ function serverRowToGrid(r: ProductRow): ProductGridRow {
   }
 }
 
-function parsePickWeight(s: string): number {
+function parsePickScore(s: string): number {
   const t = s.trim().replace(',', '.')
-  if (t === '') return 1
-  const n = Number(t)
-  if (!Number.isFinite(n) || n < 0) return 1
-  return n
+  if (t === '') return 50
+  const n = Math.round(Number(t))
+  if (!Number.isFinite(n)) return 50
+  return Math.max(0, Math.min(100, n))
+}
+
+function parseMealPick(s: string): number | null {
+  const t = s.trim().replace(',', '.')
+  if (t === '') return null
+  const n = Math.round(Number(t))
+  if (!Number.isFinite(n)) return null
+  return Math.max(0, Math.min(100, n))
 }
 
 function gridRowToInsert(r: ProductGridRow, profileId: string): ProductInsert {
@@ -107,7 +128,11 @@ function gridRowToInsert(r: ProductGridRow, profileId: string): ProductInsert {
     category: r.category,
     portion_label: r.portion_label.trim() || '100 g',
     price: Number(r.price) || 0,
-    pick_weight: parsePickWeight(r.pick_weight),
+    pick_score: parsePickScore(r.pick_score),
+    pick_breakfast: parseMealPick(r.pick_breakfast),
+    pick_lunch: parseMealPick(r.pick_lunch),
+    pick_dinner: parseMealPick(r.pick_dinner),
+    pick_snack: parseMealPick(r.pick_snack),
     calories: Number(r.calories) || 0,
     protein: Number(r.protein) || 0,
     fat: Number(r.fat) || 0,
@@ -127,7 +152,11 @@ function gridRowToUpdate(r: ProductGridRow): ProductUpdate {
     category: r.category,
     portion_label: r.portion_label.trim() || '100 g',
     price: Number(r.price) || 0,
-    pick_weight: parsePickWeight(r.pick_weight),
+    pick_score: parsePickScore(r.pick_score),
+    pick_breakfast: parseMealPick(r.pick_breakfast),
+    pick_lunch: parseMealPick(r.pick_lunch),
+    pick_dinner: parseMealPick(r.pick_dinner),
+    pick_snack: parseMealPick(r.pick_snack),
     calories: Number(r.calories) || 0,
     protein: Number(r.protein) || 0,
     fat: Number(r.fat) || 0,
@@ -147,7 +176,11 @@ function gridRowsEqual(a: ProductGridRow, b: ProductGridRow): boolean {
     a.category === b.category &&
     a.portion_label === b.portion_label &&
     a.price === b.price &&
-    a.pick_weight === b.pick_weight &&
+    a.pick_score === b.pick_score &&
+    a.pick_breakfast === b.pick_breakfast &&
+    a.pick_lunch === b.pick_lunch &&
+    a.pick_dinner === b.pick_dinner &&
+    a.pick_snack === b.pick_snack &&
     a.calories === b.calories &&
     a.protein === b.protein &&
     a.fat === b.fat &&
@@ -343,13 +376,22 @@ export function ProductsPage() {
     mutationFn: async () => {
       const rows = gridRowsRef.current
       const baselineMap = new Map(baselineRef.current.map((r) => [r.id, r]))
+      const checkScore = (raw: string, label: string, rowLabel: string) => {
+        const t = raw.trim().replace(',', '.')
+        if (t === '') return
+        const n = Math.round(Number(t))
+        if (!Number.isFinite(n) || n < 0 || n > 100) {
+          throw new Error(`«${rowLabel}»: ${label} — целое 0–100 или пусто.`)
+        }
+      }
       for (const r of rows) {
         if (!r.name.trim()) throw new Error('У каждой строки должно быть название.')
-        const pwRaw = r.pick_weight.trim().replace(',', '.')
-        if (pwRaw !== '') {
-          const n = Number(pwRaw)
-          if (!Number.isFinite(n) || n < 0) throw new Error(`Вес подбора ≥ 0: «${r.name || r.id}».`)
-        }
+        const rowLabel = r.name.trim() || r.id
+        checkScore(r.pick_score, 'База', rowLabel)
+        checkScore(r.pick_breakfast, 'Завтрак', rowLabel)
+        checkScore(r.pick_lunch, 'Обед', rowLabel)
+        checkScore(r.pick_dinner, 'Ужин', rowLabel)
+        checkScore(r.pick_snack, 'Перекус', rowLabel)
       }
 
       const sb = getSupabase()
@@ -436,16 +478,80 @@ export function ProductsPage() {
         ),
       },
       {
-        header: 'Вес',
-        accessorKey: 'pick_weight',
-        meta: { tdClass: 'td-num' },
+        header: 'Част.',
+        accessorKey: 'pick_score',
+        meta: {
+          tdClass: 'td-num',
+          thTitle:
+            'Частота 0–100 внутри категории (70/50/30 ≈ относительные доли). Пусто в базе = 50.',
+        },
         cell: ({ row }) => (
           <input
             className="cell-input cell-input-num"
-            inputMode="decimal"
-            value={row.original.pick_weight}
-            aria-label="Вес подбора"
-            onChange={(e) => updateCell(row.original.id, { pick_weight: e.target.value })}
+            inputMode="numeric"
+            value={row.original.pick_score}
+            aria-label="Базовая частота 0–100"
+            title="База для всех приёмов, если нет переопределения в З/О/У/П"
+            onChange={(e) => updateCell(row.original.id, { pick_score: e.target.value })}
+          />
+        ),
+      },
+      {
+        id: 'pick_breakfast',
+        header: 'З',
+        meta: {
+          tdClass: 'td-num',
+          thTitle: 'Только завтрак; пусто = база. Напр. яйца: 100 здесь, остальные приёмы пусто.',
+        },
+        cell: ({ row }) => (
+          <input
+            className="cell-input cell-input-num"
+            inputMode="numeric"
+            value={row.original.pick_breakfast}
+            aria-label="Частота на завтрак"
+            onChange={(e) => updateCell(row.original.id, { pick_breakfast: e.target.value })}
+          />
+        ),
+      },
+      {
+        id: 'pick_lunch',
+        header: 'О',
+        meta: { tdClass: 'td-num', thTitle: 'Только обед; пусто = база' },
+        cell: ({ row }) => (
+          <input
+            className="cell-input cell-input-num"
+            inputMode="numeric"
+            value={row.original.pick_lunch}
+            aria-label="Частота на обед"
+            onChange={(e) => updateCell(row.original.id, { pick_lunch: e.target.value })}
+          />
+        ),
+      },
+      {
+        id: 'pick_dinner',
+        header: 'У',
+        meta: { tdClass: 'td-num', thTitle: 'Только ужин; пусто = база' },
+        cell: ({ row }) => (
+          <input
+            className="cell-input cell-input-num"
+            inputMode="numeric"
+            value={row.original.pick_dinner}
+            aria-label="Частота на ужин"
+            onChange={(e) => updateCell(row.original.id, { pick_dinner: e.target.value })}
+          />
+        ),
+      },
+      {
+        id: 'pick_snack',
+        header: 'П',
+        meta: { tdClass: 'td-num', thTitle: 'Только перекус; пусто = база' },
+        cell: ({ row }) => (
+          <input
+            className="cell-input cell-input-num"
+            inputMode="numeric"
+            value={row.original.pick_snack}
+            aria-label="Частота на перекус"
+            onChange={(e) => updateCell(row.original.id, { pick_snack: e.target.value })}
           />
         ),
       },
@@ -566,7 +672,9 @@ export function ProductsPage() {
         </div>
       </div>
       <p className="muted small">
-        Редактирование в таблице — изменения только локально, пока не нажмёте «Сохранить изменения» внизу.
+        Редактирование в таблице — локально до «Сохранить». <strong>Част.</strong> и колонки <strong>З/О/У/П</strong> —
+        целые 0–100: внутри одной категории числа ведут себя как «проценты к соседям» (70+50+30 → доли ~41%/29%/18%).
+        Пустая З/О/У/П — использовать базовую <strong>Част.</strong>
       </p>
 
       {productsQuery.error ? (
@@ -579,9 +687,14 @@ export function ProductsPage() {
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
-                {hg.headers.map((h) => (
-                  <th key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</th>
-                ))}
+                {hg.headers.map((h) => {
+                  const thTitle = (h.column.columnDef.meta as { thTitle?: string } | undefined)?.thTitle
+                  return (
+                    <th key={h.id} title={thTitle}>
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                    </th>
+                  )
+                })}
               </tr>
             ))}
           </thead>

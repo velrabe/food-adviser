@@ -27,8 +27,12 @@ export type ProductRow = {
   category: ProductCategory
   portion_label: string
   price: number
-  /** Относительный вес в генераторе (≥0). Выше — чаще, 0 — не предлагать. */
-  pick_weight: number
+  /** Частота 0–100 внутри категории; 70/50/30 у соседей ≈ доли 70:50:30 после нормализации. */
+  pick_score: number
+  pick_breakfast: number | null
+  pick_lunch: number | null
+  pick_dinner: number | null
+  pick_snack: number | null
   calories: number
   protein: number
   fat: number
@@ -49,7 +53,11 @@ export type ProductInsert = {
   category: ProductCategory
   portion_label?: string
   price?: number
-  pick_weight?: number
+  pick_score?: number
+  pick_breakfast?: number | null
+  pick_lunch?: number | null
+  pick_dinner?: number | null
+  pick_snack?: number | null
   calories?: number
   protein?: number
   fat?: number

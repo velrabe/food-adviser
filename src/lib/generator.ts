@@ -44,6 +44,9 @@ export type GeneratedPlan = {
   score: number
 }
 
+/** За один приём с этой вероятностью берутся два разных белка вместо одного. */
+const DUAL_PROTEIN_PROB = 0.05
+
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
 function mealTypesForCount(mealsCount: number): MealType[] {
@@ -72,24 +75,81 @@ export function buildMealShares(settings: SettingsRow | null, mealsCount: number
   return shares.map((x) => x / sum)
 }
 
-function pickWeight(p: ProductRow): number {
-  const w = Number(p.pick_weight)
-  if (!Number.isFinite(w) || w < 0) return 1
-  return w
+function clampScore(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  return Math.max(0, Math.min(100, Math.round(n)))
 }
 
-/** Взвешенный случайный выбор; товары с весом 0 пропускаются. */
-function pickWeighted(products: ProductRow[], rng: () => number): ProductRow | null {
-  const list = products.filter((p) => pickWeight(p) > 0)
+/** Эффективная частота 0–100 для приёма: переопределение по типу приёма или базовая pick_score. */
+export function effectivePickScore(p: ProductRow, meal: MealType): number {
+  const o =
+    meal === 'breakfast'
+      ? p.pick_breakfast
+      : meal === 'lunch'
+        ? p.pick_lunch
+        : meal === 'dinner'
+          ? p.pick_dinner
+          : p.pick_snack
+  if (o != null) return clampScore(Number(o))
+  return clampScore(Number(p.pick_score ?? 50))
+}
+
+/** Максимум эффективной частоты по любому приёму — для проверки «есть ли кого выбрать». */
+function maxEffectiveScoreAcrossMeals(p: ProductRow): number {
+  return Math.max(
+    effectivePickScore(p, 'breakfast'),
+    effectivePickScore(p, 'lunch'),
+    effectivePickScore(p, 'dinner'),
+    effectivePickScore(p, 'snack'),
+  )
+}
+
+function pickWeightedCustom(
+  products: ProductRow[],
+  rng: () => number,
+  weightFn: (p: ProductRow) => number,
+): ProductRow | null {
+  const list = products.filter((p) => weightFn(p) > 0)
   if (!list.length) return null
-  const total = list.reduce((s, p) => s + pickWeight(p), 0)
+  const total = list.reduce((s, p) => s + weightFn(p), 0)
   if (total <= 0) return null
   let r = rng() * total
   for (const p of list) {
-    r -= pickWeight(p)
+    r -= weightFn(p)
     if (r <= 0) return p
   }
   return list[list.length - 1]
+}
+
+function pickForMeal(products: ProductRow[], meal: MealType, rng: () => number): ProductRow | null {
+  return pickWeightedCustom(products, rng, (p) => effectivePickScore(p, meal))
+}
+
+/** Для «добавок»: та же шкала + лёгкий буст клетчатке и низкой калорийности (объём без лишних ккал). */
+function extraDrawWeight(p: ProductRow, meal: MealType): number {
+  const base = effectivePickScore(p, meal)
+  if (base <= 0) return 0
+  const cal = Math.max(1, Number(p.calories))
+  const fiber = Math.max(0, Number(p.fiber))
+  const fillerBoost = 1 + fiber / 14 + 28 / (28 + cal)
+  return base * fillerBoost
+}
+
+function pickExtra(products: ProductRow[], meal: MealType, rng: () => number): ProductRow | null {
+  return pickWeightedCustom(products, rng, (p) => extraDrawWeight(p, meal))
+}
+
+function pickTwoDistinctProteins(
+  proteins: ProductRow[],
+  meal: MealType,
+  rng: () => number,
+): [ProductRow, ProductRow] | null {
+  const a = pickForMeal(proteins, meal, rng)
+  if (!a) return null
+  const rest = proteins.filter((p) => p.id !== a.id)
+  const b = pickForMeal(rest, meal, rng)
+  if (!b) return null
+  return [a, b]
 }
 
 function bucketProducts(products: ProductRow[]) {
@@ -169,18 +229,44 @@ function tryOnce(
   const usedIds = new Set<string>()
 
   for (let i = 0; i < n; i++) {
-    const prot = pickWeighted(proteins, rng)
-    const carb = pickWeighted(carbs, rng)
-    if (!prot || !carb) return null
+    const mt = types[i]
+    let protList: ProductRow[]
 
-    const items: GeneratedLineItem[] = [lineFromProduct(prot), lineFromProduct(carb)]
-    const extraN = Math.floor(rng() * 3)
-    let extraPool = extras.filter(
-      (e) => e.id !== prot.id && e.id !== carb.id && pickWeight(e) > 0,
-    )
+    if (rng() < DUAL_PROTEIN_PROB) {
+      const pair = pickTwoDistinctProteins(proteins, mt, rng)
+      if (!pair) {
+        const one = pickForMeal(proteins, mt, rng)
+        if (!one) return null
+        protList = [one]
+      } else {
+        protList = [pair[0], pair[1]]
+      }
+    } else {
+      const one = pickForMeal(proteins, mt, rng)
+      if (!one) return null
+      protList = [one]
+    }
+
+    const carb = pickForMeal(carbs, mt, rng)
+    if (!carb) return null
+
+    const items: GeneratedLineItem[] = [
+      ...protList.map((p) => lineFromProduct(p)),
+      lineFromProduct(carb),
+    ]
+
+    const usedInMeal = new Set<string>([...protList.map((p) => p.id), carb.id])
+
+    const anchorCal = items.reduce((s, it) => s + it.calories, 0)
+    let extraN = Math.floor(rng() * 3)
+    if (anchorCal < 380) {
+      extraN = Math.min(4, extraN + 1 + (rng() < 0.35 ? 1 : 0))
+    }
+
+    let extraPool = extras.filter((e) => !usedInMeal.has(e.id) && extraDrawWeight(e, mt) > 0)
     let added = 0
     while (added < extraN && extraPool.length > 0) {
-      const e = pickWeighted(extraPool, rng)
+      const e = pickExtra(extraPool, mt, rng)
       if (!e) break
       extraPool = extraPool.filter((x) => x.id !== e.id)
       items.push(lineFromProduct(e))
@@ -189,7 +275,7 @@ function tryOnce(
 
     const sums = sumMeal(items)
     meals.push({
-      mealType: types[i],
+      mealType: mt,
       position: i,
       items,
       ...sums,
@@ -263,11 +349,11 @@ export function generatorPrerequisiteError(products: ProductRow[]): string | nul
   const { proteins, carbs } = bucketProducts(products)
   if (!proteins.length) return 'Нужен хотя бы один активный продукт с категорией «Белок».'
   if (!carbs.length) return 'Нужен хотя бы один активный продукт с категорией «Углеводы».'
-  if (!proteins.some((p) => pickWeight(p) > 0)) {
-    return 'Для белков задайте вес подбора > 0 хотя бы у одной позиции (или проверьте категорию).'
+  if (!proteins.some((p) => maxEffectiveScoreAcrossMeals(p) > 0)) {
+    return 'Для белков задайте частоту > 0 (базу или для приёма) хотя бы у одной позиции.'
   }
-  if (!carbs.some((p) => pickWeight(p) > 0)) {
-    return 'Для углеводов задайте вес подбора > 0 хотя бы у одной позиции (или проверьте категорию).'
+  if (!carbs.some((p) => maxEffectiveScoreAcrossMeals(p) > 0)) {
+    return 'Для углеводов задайте частоту > 0 хотя бы у одной позиции.'
   }
   return null
 }
