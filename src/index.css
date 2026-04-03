@@ -378,6 +378,7 @@ textarea:focus {
   overflow-x: auto;
   overflow-y: clip;
   -webkit-overflow-scrolling: touch;
+  border-radius: 0;
 }
 
 .products-sheet {
@@ -385,10 +386,27 @@ textarea:focus {
   border-spacing: 0;
 }
 
-/* Плотнее, чем общий .table — меньше «мёртвого» поля, больше зона клика по инпутам */
+/* Режим «как Excel»: минимальные отступы, без скруглений */
 .products-sheet th,
 .products-sheet td {
-  padding: 0.3rem 0.35rem;
+  padding: 0.1rem;
+}
+
+.products-sheet .cell-input,
+.products-sheet .cell-select {
+  border-radius: 0;
+  padding: 0.1rem 0.12rem;
+}
+
+.products-sheet input[type='checkbox'] {
+  border-radius: 0;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.products-sheet .row-menu-trigger {
+  border-radius: 0;
+  padding: 0.05rem 0.2rem;
 }
 
 /*
