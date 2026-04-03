@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useProfile } from '../profiles/ProfileProvider'
 
@@ -11,6 +11,9 @@ const nav: { to: string; label: string; end?: boolean }[] = [
 ]
 
 export function AppLayout() {
+  const loc = useLocation()
+  const mainFullWidth =
+    loc.pathname === '/products' || loc.pathname.endsWith('/products')
   const { profiles, activeProfile, ready, error, setActiveProfileId, createProfile } = useProfile()
 
   if (!isSupabaseConfigured()) {
@@ -104,7 +107,7 @@ export function AppLayout() {
           </button>
         </div>
       </header>
-      <main className="main">
+      <main className={mainFullWidth ? 'main main--wide' : 'main'}>
         <Outlet />
       </main>
     </div>
