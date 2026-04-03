@@ -12,14 +12,6 @@
   --radius: 10px;
   --font: 'Instrument Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', Consolas, monospace;
-  /* Высота липкого сайт-хедера: шапка таблицы залипает ниже него */
-  --app-sticky-header-height: 4.75rem;
-}
-
-@media (max-width: 720px) {
-  :root {
-    --app-sticky-header-height: 6.25rem;
-  }
 }
 
 *,
@@ -369,14 +361,8 @@ textarea:focus {
   margin-top: 0.5rem;
 }
 
-/*
- * Горизонтальный скролл таблицы + sticky thead при прокрутке страницы:
- * overflow-y: clip — вертикальный скролл не у контейнера, иначе sticky цепляется к «внутреннему» окну.
- * border-collapse: separate — иначе thead position:sticky часто ломается в браузерах.
- */
 .table-wrap.products-sheet-wrap {
   overflow-x: auto;
-  overflow-y: clip;
   -webkit-overflow-scrolling: touch;
   border-radius: 0;
 }
@@ -409,21 +395,7 @@ textarea:focus {
   padding: 0.05rem 0.2rem;
 }
 
-/*
- * Sticky на каждом th даёт наложение на первую строку tbody (баг раскладки таблицы).
- * Вешаем на thead целиком.
- */
-.products-sheet thead {
-  position: -webkit-sticky;
-  position: sticky;
-  top: var(--app-sticky-header-height);
-  z-index: 12;
-  background: var(--surface);
-}
-
 .products-sheet thead th {
-  position: relative;
-  top: auto;
   font-size: 0.8rem;
   background: var(--surface);
   box-shadow: inset 0 -1px 0 var(--border);
