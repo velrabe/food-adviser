@@ -369,15 +369,20 @@ textarea:focus {
   margin-top: 0.5rem;
 }
 
-/* Иначе overflow-x на .table-wrap ломает sticky при прокрутке страницы */
+/*
+ * Горизонтальный скролл таблицы + sticky thead при прокрутке страницы:
+ * overflow-y: clip — вертикальный скролл не у контейнера, иначе sticky цепляется к «внутреннему» окну.
+ * border-collapse: separate — иначе thead position:sticky часто ломается в браузерах.
+ */
 .table-wrap.products-sheet-wrap {
-  overflow-x: visible;
-  overflow-y: visible;
+  overflow-x: auto;
+  overflow-y: clip;
+  -webkit-overflow-scrolling: touch;
 }
 
-.products-sheet-hscroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+.products-sheet {
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .products-sheet thead th {
@@ -387,7 +392,7 @@ textarea:focus {
   font-size: 0.8rem;
   background: var(--surface);
   background-clip: padding-box;
-  box-shadow: 0 1px 0 var(--border);
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 
 .products-sheet-row--new {
