@@ -53,16 +53,24 @@ update public.generation_history
 set profile_id = (select id from public.profiles order by created_at limit 1)
 where profile_id is null;
 
--- settings: могли быть строки от разных auth-пользователей — оставляем одну на дефолтный профиль
+-- settings: в SQL Editor auth.uid() = null; нельзя вставлять строку, пока есть NOT NULL user_id.
+-- Сначала убираем user_id, потом вставляем только profile_id.
 delete from public.settings;
+
+alter table public.settings drop constraint if exists settings_user_id_key;
+alter table public.settings drop constraint if exists settings_user_id_fkey;
+alter table public.settings drop column if exists user_id;
 
 insert into public.settings (profile_id)
 select id from public.profiles order by created_at limit 1;
 
+alter table public.settings alter column profile_id set not null;
+alter table public.settings drop constraint if exists settings_profile_id_key;
+alter table public.settings add constraint settings_profile_id_key unique (profile_id);
+
 alter table public.products alter column profile_id set not null;
 alter table public.plans alter column profile_id set not null;
 alter table public.generation_history alter column profile_id set not null;
-alter table public.settings alter column profile_id set not null;
 
 -- ——— убрать user_id ———
 drop index if exists products_user_active_idx;
@@ -90,10 +98,7 @@ create index if not exists generation_history_profile_idx
 alter table public.generation_history drop constraint if exists generation_history_user_id_fkey;
 alter table public.generation_history drop column user_id;
 
-alter table public.settings drop constraint if exists settings_user_id_key;
-alter table public.settings drop constraint if exists settings_user_id_fkey;
-alter table public.settings drop column user_id;
-alter table public.settings add constraint settings_profile_id_key unique (profile_id);
+-- settings: user_id уже удалён выше
 
 -- ——— RLS: любой с anon-ключом (без логина) ———
 create policy profiles_all on public.profiles
