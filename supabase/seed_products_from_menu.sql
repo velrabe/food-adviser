@@ -35,7 +35,7 @@ SELECT
   v.fiber,
   v.sugar,
   v.storage_hours,
-  v.comment,
+  v."comment",
   v.is_active
 FROM (
   VALUES
@@ -131,18 +131,18 @@ FROM (
   ('grab-s13', 'Lime wedge garnish', 'sauce', '1 pc', 1100, 3, 0, 0, 1, 0, 0, 48, 'Скрин меню garnish', true),
   ('grab-s14', 'Lemon wedge garnish', 'sauce', '1 pc', 2200, 4, 0, 0, 1, 0, 0, 48, 'В меню помечено недоступно', false)
 ) AS v(
-  internal_code text,
-  name text,
-  category text,
-  portion_label text,
-  price numeric,
-  calories numeric,
-  protein numeric,
-  fat numeric,
-  carbs numeric,
-  fiber numeric,
-  sugar numeric,
-  storage_hours int,
-  comment text,
-  is_active boolean
+  internal_code,
+  name,
+  category,
+  portion_label,
+  price,
+  calories,
+  protein,
+  fat,
+  carbs,
+  fiber,
+  sugar,
+  storage_hours,
+  "comment",
+  is_active
 );
