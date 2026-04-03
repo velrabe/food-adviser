@@ -34,9 +34,11 @@
 
 ## Продакшен на GitHub Pages
 
-После пуша в `main` GitHub Actions собирает сайт (нужно один раз включить Pages).
+После пуша в `main` workflow **Deploy to GitHub Pages** собирает и публикует сайт.
 
-1. Репозиторий → **Settings → Pages → Build and deployment → Source**: выберите **GitHub Actions**.
+**Важно:** если в репозитории ещё не включён GitHub Pages, job `deploy` падает с ошибкой `HttpError: Not Found` / *Creating Pages deployment failed*. Сначала включите Pages, потом перезапустите workflow (кнопка **Re-run jobs** в Actions) или сделайте пустой коммит.
+
+1. Репозиторий → **Settings → Pages → Build and deployment → Source**: выберите **GitHub Actions** (не ветку `gh-pages`).
 2. **Settings → Secrets and variables → Actions** добавьте секреты:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`  
