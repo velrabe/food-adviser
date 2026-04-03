@@ -337,6 +337,12 @@ textarea:focus {
   text-align: right;
 }
 
+.td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .row-menu-wrap {
   position: relative;
   display: inline-block;

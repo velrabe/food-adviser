@@ -27,6 +27,8 @@ export type ProductRow = {
   category: ProductCategory
   portion_label: string
   price: number
+  /** Относительный вес в генераторе (≥0). Выше — чаще, 0 — не предлагать. */
+  pick_weight: number
   calories: number
   protein: number
   fat: number
@@ -47,6 +49,7 @@ export type ProductInsert = {
   category: ProductCategory
   portion_label?: string
   price?: number
+  pick_weight?: number
   calories?: number
   protein?: number
   fat?: number

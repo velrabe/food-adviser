@@ -42,6 +42,8 @@ type Draft = {
   sugar: string
   storage_hours: string
   comment: string
+  /** Относительный вес в генераторе (≥0) */
+  pick_weight: string
   is_active: boolean
 }
 
@@ -60,6 +62,7 @@ function emptyDraft(): Draft {
     sugar: '0',
     storage_hours: '',
     comment: '',
+    pick_weight: '1',
     is_active: true,
   }
 }
@@ -79,6 +82,7 @@ function rowToDraft(row: ProductRow): Draft {
     sugar: String(row.sugar),
     storage_hours: row.storage_hours != null ? String(row.storage_hours) : '',
     comment: row.comment ?? '',
+    pick_weight: String(row.pick_weight ?? 1),
     is_active: row.is_active,
   }
 }
@@ -90,6 +94,7 @@ function draftToInsert(d: Draft): Omit<ProductInsert, 'profile_id'> {
     category: d.category,
     portion_label: d.portion_label.trim() || '100 g',
     price: Number(d.price) || 0,
+    pick_weight: parsePickWeightDraft(d.pick_weight),
     calories: Number(d.calories) || 0,
     protein: Number(d.protein) || 0,
     fat: Number(d.fat) || 0,
@@ -104,6 +109,14 @@ function draftToInsert(d: Draft): Omit<ProductInsert, 'profile_id'> {
 
 function draftToUpdate(d: Draft): ProductUpdate {
   return draftToInsert(d)
+}
+
+function parsePickWeightDraft(s: string): number {
+  const t = s.trim().replace(',', '.')
+  if (t === '') return 1
+  const n = Number(t)
+  if (!Number.isFinite(n) || n < 0) return 1
+  return n
 }
 
 const COMMENT_MAX_CH = 36
@@ -248,6 +261,7 @@ export function ProductsPage() {
         sugar: Number(p.sugar),
         storage_hours: p.storage_hours,
         comment: p.comment,
+        pick_weight: Number.isFinite(Number(p.pick_weight)) ? Number(p.pick_weight) : 1,
         is_active: true,
       }
       const { error } = await getSupabase().from('products').insert(insert)
@@ -269,6 +283,16 @@ export function ProductsPage() {
         header: 'Категория',
         accessorKey: 'category',
         cell: ({ getValue }) => CATEGORY_LABELS[getValue() as ProductCategory],
+      },
+      {
+        header: 'Вес',
+        accessorKey: 'pick_weight',
+        meta: { tdClass: 'td-num' },
+        cell: ({ getValue }) => {
+          const v = Number(getValue())
+          if (!Number.isFinite(v)) return '—'
+          return v === 0 ? '0' : v >= 0.0001 ? String(v) : v.toExponential(1)
+        },
       },
       {
         header: 'Цена',
@@ -356,6 +380,14 @@ export function ProductsPage() {
       if (!draft.name.trim()) {
         setFormError('Укажите название')
         return
+      }
+      const pwRaw = draft.pick_weight.trim().replace(',', '.')
+      if (pwRaw !== '') {
+        const n = Number(pwRaw)
+        if (!Number.isFinite(n) || n < 0) {
+          setFormError('Вес подбора: число ≥ 0 или пусто (= 1).')
+          return
+        }
       }
       if (modal === 'create') {
         await insertMut.mutateAsync({ ...draftToInsert(draft), profile_id: profileId })
@@ -482,6 +514,19 @@ export function ProductsPage() {
                   value={draft.portion_label}
                   onChange={(e) => setDraft({ ...draft, portion_label: e.target.value })}
                 />
+              </label>
+              <label className="field">
+                <span>Вес в подборе (генератор)</span>
+                <input
+                  inputMode="decimal"
+                  value={draft.pick_weight}
+                  onChange={(e) => setDraft({ ...draft, pick_weight: e.target.value })}
+                  placeholder="1"
+                />
+                <span className="muted small">
+                  Относительная частота: 1 — как обычно; выше — чаще (напр. 80); ниже — реже (0.001); 0 —
+                  не предлагать.
+                </span>
               </label>
               <div className="grid-3">
                 <label className="field">

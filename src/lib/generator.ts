@@ -72,9 +72,24 @@ export function buildMealShares(settings: SettingsRow | null, mealsCount: number
   return shares.map((x) => x / sum)
 }
 
-function pick<T>(arr: T[], rng: () => number): T | null {
-  if (!arr.length) return null
-  return arr[Math.floor(rng() * arr.length)]
+function pickWeight(p: ProductRow): number {
+  const w = Number(p.pick_weight)
+  if (!Number.isFinite(w) || w < 0) return 1
+  return w
+}
+
+/** Взвешенный случайный выбор; товары с весом 0 пропускаются. */
+function pickWeighted(products: ProductRow[], rng: () => number): ProductRow | null {
+  const list = products.filter((p) => pickWeight(p) > 0)
+  if (!list.length) return null
+  const total = list.reduce((s, p) => s + pickWeight(p), 0)
+  if (total <= 0) return null
+  let r = rng() * total
+  for (const p of list) {
+    r -= pickWeight(p)
+    if (r <= 0) return p
+  }
+  return list[list.length - 1]
 }
 
 function bucketProducts(products: ProductRow[]) {
@@ -154,17 +169,20 @@ function tryOnce(
   const usedIds = new Set<string>()
 
   for (let i = 0; i < n; i++) {
-    const prot = pick(proteins, rng)
-    const carb = pick(carbs, rng)
+    const prot = pickWeighted(proteins, rng)
+    const carb = pickWeighted(carbs, rng)
     if (!prot || !carb) return null
 
     const items: GeneratedLineItem[] = [lineFromProduct(prot), lineFromProduct(carb)]
     const extraN = Math.floor(rng() * 3)
-    const shuffled = [...extras].sort(() => rng() - 0.5)
+    let extraPool = extras.filter(
+      (e) => e.id !== prot.id && e.id !== carb.id && pickWeight(e) > 0,
+    )
     let added = 0
-    for (const e of shuffled) {
-      if (added >= extraN) break
-      if (e.id === prot.id || e.id === carb.id) continue
+    while (added < extraN && extraPool.length > 0) {
+      const e = pickWeighted(extraPool, rng)
+      if (!e) break
+      extraPool = extraPool.filter((x) => x.id !== e.id)
       items.push(lineFromProduct(e))
       added++
     }
@@ -245,5 +263,11 @@ export function generatorPrerequisiteError(products: ProductRow[]): string | nul
   const { proteins, carbs } = bucketProducts(products)
   if (!proteins.length) return 'Нужен хотя бы один активный продукт с категорией «Белок».'
   if (!carbs.length) return 'Нужен хотя бы один активный продукт с категорией «Углеводы».'
+  if (!proteins.some((p) => pickWeight(p) > 0)) {
+    return 'Для белков задайте вес подбора > 0 хотя бы у одной позиции (или проверьте категорию).'
+  }
+  if (!carbs.some((p) => pickWeight(p) > 0)) {
+    return 'Для углеводов задайте вес подбора > 0 хотя бы у одной позиции (или проверьте категорию).'
+  }
   return null
 }
