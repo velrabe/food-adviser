@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -106,6 +106,88 @@ function draftToUpdate(d: Draft): ProductUpdate {
   return draftToInsert(d)
 }
 
+const COMMENT_MAX_CH = 36
+
+function ProductRowMenu({
+  product,
+  onEdit,
+  onToggleArchive,
+  onDuplicate,
+  duplicatePending,
+}: {
+  product: ProductRow
+  onEdit: () => void
+  onToggleArchive: () => void
+  onDuplicate: () => void
+  duplicatePending: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => {
+      if (wrapRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  return (
+    <div className="row-menu-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="row-menu-trigger"
+        aria-label="Действия с продуктом"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((v) => !v)}
+      >
+        ⋯
+      </button>
+      {open ? (
+        <div className="row-menu-dropdown" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            className="row-menu-item"
+            onClick={() => {
+              setOpen(false)
+              onEdit()
+            }}
+          >
+            Изменить
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="row-menu-item"
+            onClick={() => {
+              setOpen(false)
+              onToggleArchive()
+            }}
+          >
+            {product.is_active ? 'В архив' : 'Вернуть'}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="row-menu-item"
+            disabled={duplicatePending}
+            onClick={() => {
+              setOpen(false)
+              onDuplicate()
+            }}
+          >
+            Дублировать
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function ProductsPage() {
   const { activeProfile } = useProfile()
   const qc = useQueryClient()
@@ -210,46 +292,43 @@ export function ProductsPage() {
         accessorKey: 'comment',
         cell: ({ getValue }) => {
           const t = (getValue() as string | null) ?? ''
-          return t.length > 40 ? `${t.slice(0, 40)}…` : t || '—'
+          if (!t.trim()) {
+            return (
+              <span className="comment-truncate comment-truncate--empty" title="">
+                —
+              </span>
+            )
+          }
+          const short =
+            t.length > COMMENT_MAX_CH ? `${t.slice(0, COMMENT_MAX_CH)}…` : t
+          return (
+            <span className="comment-truncate" title={t}>
+              {short}
+            </span>
+          )
         },
       },
       {
         header: '',
         id: 'actions',
+        meta: { tdClass: 'td-actions' },
         cell: ({ row }) => {
           const p = row.original
           return (
-            <div className="table-actions">
-              <button
-                type="button"
-                className="btn link"
-                onClick={() => {
-                  setEditingId(p.id)
-                  setDraft(rowToDraft(p))
-                  setFormError(null)
-                  setModal('edit')
-                }}
-              >
-                Изменить
-              </button>
-              <button
-                type="button"
-                className="btn link"
-                onClick={() =>
-                  updateMut.mutate({ id: p.id, patch: { is_active: !p.is_active } })
-                }
-              >
-                {p.is_active ? 'В архив' : 'Вернуть'}
-              </button>
-              <button
-                type="button"
-                className="btn link"
-                onClick={() => duplicateMut.mutate(p)}
-                disabled={duplicateMut.isPending}
-              >
-                Дублировать
-              </button>
-            </div>
+            <ProductRowMenu
+              product={p}
+              duplicatePending={duplicateMut.isPending}
+              onEdit={() => {
+                setEditingId(p.id)
+                setDraft(rowToDraft(p))
+                setFormError(null)
+                setModal('edit')
+              }}
+              onToggleArchive={() =>
+                updateMut.mutate({ id: p.id, patch: { is_active: !p.is_active } })
+              }
+              onDuplicate={() => duplicateMut.mutate(p)}
+            />
           )
         },
       },
@@ -338,9 +417,15 @@ export function ProductsPage() {
           <tbody>
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const tdClass = (cell.column.columnDef.meta as { tdClass?: string } | undefined)
+                    ?.tdClass
+                  return (
+                    <td key={cell.id} className={tdClass}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  )
+                })}
               </tr>
             ))}
           </tbody>
