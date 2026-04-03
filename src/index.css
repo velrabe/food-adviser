@@ -527,36 +527,84 @@ textarea:focus {
   margin-bottom: 0.25rem;
 }
 
-.variant-meals {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.variant-table-wrap {
+  overflow-x: auto;
   margin-bottom: 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 65%, var(--surface));
 }
 
-.meal-block {
-  border-top: 1px solid var(--border);
-  padding-top: 0.65rem;
-}
-
-.meal-block:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-
-.meal-title {
-  font-weight: 500;
-  font-size: 0.92rem;
-  margin-bottom: 0.35rem;
-}
-
-.meal-items {
-  margin: 0;
-  padding-left: 1.15rem;
+.variant-table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
   font-size: 0.88rem;
-  color: var(--text);
 }
 
-.meal-items li {
-  margin-bottom: 0.15rem;
+.variant-table th,
+.variant-table td {
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.variant-table thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: color-mix(in oklab, var(--surface) 85%, transparent);
+  border-bottom-color: var(--border);
+  white-space: nowrap;
+}
+
+.variant-table-col-product {
+  width: 38%;
+}
+
+.variant-table-col-num {
+  text-align: right;
+  width: auto;
+}
+
+.variant-table-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.variant-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.variant-table-meal-label td {
+  padding-top: 0.65rem;
+  padding-bottom: 0.35rem;
+  background: color-mix(in oklab, var(--accent) 6%, var(--surface));
+  border-bottom: 1px solid color-mix(in oklab, var(--accent) 22%, var(--border));
+}
+
+.variant-table-meal-label:first-of-type td {
+  padding-top: 0.5rem;
+}
+
+.variant-table-subtotal td {
+  background: color-mix(in oklab, var(--surface) 90%, var(--border));
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+
+.variant-table-subtotal-label {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.variant-table-day-total td {
+  padding-top: 0.6rem;
+  padding-bottom: 0.55rem;
+  border-top: 2px solid color-mix(in oklab, var(--accent) 45%, var(--border));
+  border-bottom: none;
+  background: color-mix(in oklab, var(--accent) 8%, var(--surface));
 }

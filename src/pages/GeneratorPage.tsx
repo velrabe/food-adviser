@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSupabase } from '../lib/supabase'
 import {
@@ -19,6 +19,10 @@ const MEAL_LABEL: Record<string, string> = {
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)
+}
+
+function formatNutrient(n: number) {
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(n))
 }
 
 function todayISODate() {
@@ -251,10 +255,6 @@ export function GeneratorPage() {
                   </header>
                   <ul className="variant-totals">
                     <li>
-                      {formatMoney(plan.total_calories)} ккал · Б {Math.round(plan.total_protein)} · Ж{' '}
-                      {Math.round(plan.total_fat)} · У {Math.round(plan.total_carbs)}
-                    </li>
-                    <li>
                       Еда {formatMoney(plan.total_price)}
                       {Number(deliveryFee) > 0 ? (
                         <> + доставка {formatMoney(Number(deliveryFee))} ={' '}
@@ -268,27 +268,67 @@ export function GeneratorPage() {
                       </li>
                     ) : null}
                   </ul>
-                  <div className="variant-meals">
-                    {plan.meals.map((m) => (
-                      <div key={m.position} className="meal-block">
-                        <div className="meal-title">
-                          {MEAL_LABEL[m.mealType] ?? m.mealType}{' '}
-                          <span className="muted small">
-                            {Math.round(m.meal_calories)} ккал · {formatMoney(m.meal_price)}
-                          </span>
-                        </div>
-                        <ul className="meal-items">
-                          {m.items.map((it) => (
-                            <li key={`${m.position}-${it.productId}`}>
-                              {it.name}{' '}
-                              <span className="muted">
-                                ({it.portion_label}) {formatMoney(it.price)}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                  <div className="variant-table-wrap">
+                    <table className="variant-table">
+                      <thead>
+                        <tr>
+                          <th className="variant-table-col-product">Продукт</th>
+                          <th className="variant-table-col-num">Цена</th>
+                          <th className="variant-table-col-num">ккал</th>
+                          <th className="variant-table-col-num">Б, г</th>
+                          <th className="variant-table-col-num">Ж, г</th>
+                          <th className="variant-table-col-num">У, г</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {plan.meals.map((m) => (
+                          <Fragment key={m.position}>
+                            <tr className="variant-table-meal-label">
+                              <td colSpan={6}>
+                                <strong>{MEAL_LABEL[m.mealType] ?? m.mealType}</strong>
+                                <span className="muted small">
+                                  {' '}
+                                  · позиций {m.items.length}
+                                </span>
+                              </td>
+                            </tr>
+                            {m.items.map((it) => (
+                              <tr key={`${m.position}-${it.productId}`}>
+                                <td>
+                                  {it.name}
+                                  <span className="muted small"> · {it.portion_label}</span>
+                                </td>
+                                <td className="variant-table-num">{formatMoney(it.price)}</td>
+                                <td className="variant-table-num">{formatNutrient(it.calories)}</td>
+                                <td className="variant-table-num">{formatNutrient(it.protein)}</td>
+                                <td className="variant-table-num">{formatNutrient(it.fat)}</td>
+                                <td className="variant-table-num">{formatNutrient(it.carbs)}</td>
+                              </tr>
+                            ))}
+                            <tr className="variant-table-subtotal">
+                              <td>
+                                <span className="variant-table-subtotal-label">Итого за приём</span>
+                              </td>
+                              <td className="variant-table-num">{formatMoney(m.meal_price)}</td>
+                              <td className="variant-table-num">{formatNutrient(m.meal_calories)}</td>
+                              <td className="variant-table-num">{formatNutrient(m.meal_protein)}</td>
+                              <td className="variant-table-num">{formatNutrient(m.meal_fat)}</td>
+                              <td className="variant-table-num">{formatNutrient(m.meal_carbs)}</td>
+                            </tr>
+                          </Fragment>
+                        ))}
+                        <tr className="variant-table-day-total">
+                          <td>
+                            <strong>За день</strong>
+                          </td>
+                          <td className="variant-table-num">{formatMoney(plan.total_price)}</td>
+                          <td className="variant-table-num">{formatNutrient(plan.total_calories)}</td>
+                          <td className="variant-table-num">{formatNutrient(plan.total_protein)}</td>
+                          <td className="variant-table-num">{formatNutrient(plan.total_fat)}</td>
+                          <td className="variant-table-num">{formatNutrient(plan.total_carbs)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                   <button
                     type="button"
