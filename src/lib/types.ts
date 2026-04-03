@@ -61,3 +61,21 @@ export type ProductInsert = {
 export type ProductUpdate = Partial<
   Omit<ProductRow, 'id' | 'profile_id' | 'created_at' | 'updated_at'>
 >
+
+export type SettingsRow = {
+  id: string
+  profile_id: string
+  default_calories: number
+  default_meals_count: number
+  default_delivery_fee: number
+  default_budget: number
+  protein_target: number | null
+  fat_target: number | null
+  carbs_target: number | null
+  breakfast_share: number
+  lunch_share: number
+  dinner_share: number
+  snack_share: number
+  created_at: string
+  updated_at: string
+}

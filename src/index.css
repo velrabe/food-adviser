@@ -429,3 +429,21 @@ textarea:focus {
 .product-form {
   margin-top: 0.5rem;
 }
+
+.settings-form {
+  max-width: 640px;
+  margin-top: 0.5rem;
+}
+
+.settings-fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin: 0;
+}
+
+.settings-fieldset legend {
+  padding: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
