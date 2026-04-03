@@ -8,13 +8,12 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(url?.trim() && anon?.trim())
 }
 
-/** Не вызывать createClient с пустым URL — SDK бросает ошибку и рушит весь бандл. */
 export const supabase: SupabaseClient | null = isSupabaseConfigured()
   ? createClient(url!, anon!, {
       auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
       },
     })
   : null
@@ -29,9 +28,8 @@ export type Database = {
     Tables: {
       products: {
         Row: ProductRow
-        Insert: Omit<ProductRow, 'id' | 'user_id' | 'created_at' | 'updated_at'> & {
+        Insert: Omit<ProductRow, 'created_at' | 'updated_at'> & {
           id?: string
-          user_id?: string
         }
         Update: Partial<ProductRow>
       }

@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSupabase } from '../lib/supabase'
+import { useProfile } from '../profiles/ProfileProvider'
 import type { ProductCategory, ProductInsert, ProductRow, ProductUpdate } from '../lib/types'
 
 const CATEGORY_LABELS: Record<ProductCategory, string> = {
@@ -82,7 +83,7 @@ function rowToDraft(row: ProductRow): Draft {
   }
 }
 
-function draftToInsert(d: Draft): ProductInsert {
+function draftToInsert(d: Draft): Omit<ProductInsert, 'profile_id'> {
   return {
     internal_code: d.internal_code.trim() || null,
     name: d.name.trim(),
@@ -106,6 +107,7 @@ function draftToUpdate(d: Draft): ProductUpdate {
 }
 
 export function ProductsPage() {
+  const { activeProfile } = useProfile()
   const qc = useQueryClient()
   const [showArchived, setShowArchived] = useState(false)
   const [modal, setModal] = useState<'create' | 'edit' | null>(null)
@@ -113,11 +115,17 @@ export function ProductsPage() {
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [formError, setFormError] = useState<string | null>(null)
 
+  const profileId = activeProfile!.id
+
   const productsQuery = useQuery({
-    queryKey: ['products', showArchived],
+    queryKey: ['products', showArchived, profileId],
     queryFn: async () => {
       const sb = getSupabase()
-      let q = sb.from('products').select('*').order('name', { ascending: true })
+      let q = sb
+        .from('products')
+        .select('*')
+        .eq('profile_id', profileId)
+        .order('name', { ascending: true })
       if (!showArchived) q = q.eq('is_active', true)
       const { data, error } = await q
       if (error) throw error
@@ -144,6 +152,7 @@ export function ProductsPage() {
   const duplicateMut = useMutation({
     mutationFn: async (p: ProductRow) => {
       const insert: ProductInsert = {
+        profile_id: profileId,
         internal_code: null,
         name: `${p.name} (копия)`,
         category: p.category,
@@ -245,7 +254,7 @@ export function ProductsPage() {
         },
       },
     ],
-    [updateMut.isPending, duplicateMut.isPending],
+    [updateMut.isPending, duplicateMut.isPending, profileId],
   )
 
   const table = useReactTable({
@@ -270,7 +279,7 @@ export function ProductsPage() {
         return
       }
       if (modal === 'create') {
-        await insertMut.mutateAsync(draftToInsert(draft))
+        await insertMut.mutateAsync({ ...draftToInsert(draft), profile_id: profileId })
       } else if (modal === 'edit' && editingId) {
         await updateMut.mutateAsync({ id: editingId, patch: draftToUpdate(draft) })
       }

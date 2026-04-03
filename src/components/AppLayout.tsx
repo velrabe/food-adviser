@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../auth/AuthProvider'
+import { isSupabaseConfigured } from '../lib/supabase'
+import { useProfile } from '../profiles/ProfileProvider'
 
 const nav: { to: string; label: string; end?: boolean }[] = [
   { to: '/', label: 'Таймлайн', end: true },
@@ -10,7 +11,50 @@ const nav: { to: string; label: string; end?: boolean }[] = [
 ]
 
 export function AppLayout() {
-  const { user, signOut } = useAuth()
+  const { profiles, activeProfile, ready, error, setActiveProfileId, createProfile } = useProfile()
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="shell">
+        <main className="main">
+          <div className="page narrow">
+            <h1>Настройте Supabase</h1>
+            <p className="muted">
+              В <code>.env</code> или в GitHub Secrets укажите <code>VITE_SUPABASE_URL</code> и{' '}
+              <code>VITE_SUPABASE_ANON_KEY</code>.
+            </p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="shell">
+        <main className="main">
+          <div className="page narrow">
+            <h1>Ошибка базы</h1>
+            <p className="error">{error}</p>
+            <p className="muted small">
+              Если вы ещё не применяли миграцию с профилями, выполните в SQL Editor файл{' '}
+              <code>supabase/migrations/20260403120000_profiles_open_rls.sql</code>.
+            </p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!ready) {
+    return (
+      <div className="shell">
+        <main className="main">
+          <p className="muted">Загрузка профилей…</p>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="shell">
@@ -28,10 +72,35 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="header-aside">
-          {user?.email ? <span className="muted small">{user.email}</span> : null}
-          <button type="button" className="btn ghost small" onClick={() => signOut()}>
-            Выйти
+        <div className="header-aside profile-bar">
+          <label className="profile-select-wrap">
+            <span className="muted small">Профиль</span>
+            <select
+              className="profile-select"
+              value={activeProfile?.id ?? ''}
+              onChange={(e) => setActiveProfileId(e.target.value)}
+            >
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="btn ghost small"
+            onClick={async () => {
+              const name = window.prompt('Название профиля', 'Новый')
+              if (name == null) return
+              try {
+                await createProfile(name)
+              } catch (e) {
+                window.alert(e instanceof Error ? e.message : 'Не удалось создать профиль')
+              }
+            }}
+          >
+            + Профиль
           </button>
         </div>
       </header>

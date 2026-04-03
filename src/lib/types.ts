@@ -13,9 +13,15 @@ export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
 export type GenerationStatus = 'generated' | 'saved' | 'accepted' | 'rejected'
 
+export type ProfileRow = {
+  id: string
+  label: string
+  created_at: string
+}
+
 export type ProductRow = {
   id: string
-  user_id: string
+  profile_id: string
   internal_code: string | null
   name: string
   category: ProductCategory
@@ -35,6 +41,7 @@ export type ProductRow = {
 }
 
 export type ProductInsert = {
+  profile_id: string
   internal_code?: string | null
   name: string
   category: ProductCategory
@@ -51,4 +58,6 @@ export type ProductInsert = {
   is_active?: boolean
 }
 
-export type ProductUpdate = Partial<Omit<ProductRow, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
+export type ProductUpdate = Partial<
+  Omit<ProductRow, 'id' | 'profile_id' | 'created_at' | 'updated_at'>
+>
