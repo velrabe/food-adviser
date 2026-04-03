@@ -343,6 +343,99 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.td-tight {
+  max-width: 5.5rem;
+}
+
+.td-center {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.products-sheet-wrap {
+  margin-top: 0.5rem;
+}
+
+.products-sheet th {
+  font-size: 0.8rem;
+}
+
+.products-sheet-row--new {
+  background: color-mix(in oklab, var(--accent) 7%, transparent);
+}
+
+.cell-input {
+  width: 100%;
+  min-width: 3rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.86rem;
+  background: color-mix(in oklab, var(--bg) 55%, transparent);
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.cell-input--wide {
+  min-width: 8rem;
+}
+
+.cell-input-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-input:hover,
+.cell-input:focus {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  background: var(--bg);
+  outline: none;
+}
+
+.cell-select {
+  cursor: pointer;
+  min-width: 6.5rem;
+}
+
+.save-snackbar {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.75rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid color-mix(in oklab, var(--accent) 35%, var(--border));
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+  z-index: 100;
+}
+
+.save-snackbar-text {
+  font-size: 0.92rem;
+  font-weight: 500;
+  margin-right: auto;
+}
+
+.save-snackbar-error {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.save-snackbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.products-sheet-page {
+  padding-bottom: 5rem;
+}
+
 .row-menu-wrap {
   position: relative;
   display: inline-block;

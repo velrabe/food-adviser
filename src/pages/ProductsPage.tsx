@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -22,18 +22,16 @@ const CATEGORY_LABELS: Record<ProductCategory, string> = {
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as ProductCategory[]
 
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('ru-RU', {
-    maximumFractionDigits: 0,
-  }).format(n)
-}
-
-type Draft = {
+/** Строка таблицы: все числовые поля — строки для удобного ввода как в Excel. */
+type ProductGridRow = {
+  id: string
+  isNew: boolean
   internal_code: string
   name: string
   category: ProductCategory
   portion_label: string
   price: string
+  pick_weight: string
   calories: string
   protein: string
   fat: string
@@ -42,18 +40,23 @@ type Draft = {
   sugar: string
   storage_hours: string
   comment: string
-  /** Относительный вес в генераторе (≥0) */
-  pick_weight: string
   is_active: boolean
 }
 
-function emptyDraft(): Draft {
+function newRowId() {
+  return `new-${crypto.randomUUID()}`
+}
+
+function emptyGridRow(): ProductGridRow {
   return {
+    id: newRowId(),
+    isNew: true,
     internal_code: '',
     name: '',
     category: 'protein',
     portion_label: '100 g',
     price: '0',
+    pick_weight: '1',
     calories: '0',
     protein: '0',
     fat: '0',
@@ -62,56 +65,33 @@ function emptyDraft(): Draft {
     sugar: '0',
     storage_hours: '',
     comment: '',
-    pick_weight: '1',
     is_active: true,
   }
 }
 
-function rowToDraft(row: ProductRow): Draft {
+function serverRowToGrid(r: ProductRow): ProductGridRow {
   return {
-    internal_code: row.internal_code ?? '',
-    name: row.name,
-    category: row.category,
-    portion_label: row.portion_label,
-    price: String(row.price),
-    calories: String(row.calories),
-    protein: String(row.protein),
-    fat: String(row.fat),
-    carbs: String(row.carbs),
-    fiber: String(row.fiber),
-    sugar: String(row.sugar),
-    storage_hours: row.storage_hours != null ? String(row.storage_hours) : '',
-    comment: row.comment ?? '',
-    pick_weight: String(row.pick_weight ?? 1),
-    is_active: row.is_active,
+    id: r.id,
+    isNew: false,
+    internal_code: r.internal_code ?? '',
+    name: r.name,
+    category: r.category,
+    portion_label: r.portion_label,
+    price: String(r.price),
+    pick_weight: String(r.pick_weight ?? 1),
+    calories: String(r.calories),
+    protein: String(r.protein),
+    fat: String(r.fat),
+    carbs: String(r.carbs),
+    fiber: String(r.fiber),
+    sugar: String(r.sugar),
+    storage_hours: r.storage_hours != null ? String(r.storage_hours) : '',
+    comment: r.comment ?? '',
+    is_active: r.is_active,
   }
 }
 
-function draftToInsert(d: Draft): Omit<ProductInsert, 'profile_id'> {
-  return {
-    internal_code: d.internal_code.trim() || null,
-    name: d.name.trim(),
-    category: d.category,
-    portion_label: d.portion_label.trim() || '100 g',
-    price: Number(d.price) || 0,
-    pick_weight: parsePickWeightDraft(d.pick_weight),
-    calories: Number(d.calories) || 0,
-    protein: Number(d.protein) || 0,
-    fat: Number(d.fat) || 0,
-    carbs: Number(d.carbs) || 0,
-    fiber: Number(d.fiber) || 0,
-    sugar: Number(d.sugar) || 0,
-    storage_hours: d.storage_hours.trim() === '' ? null : Number(d.storage_hours),
-    comment: d.comment.trim() || null,
-    is_active: d.is_active,
-  }
-}
-
-function draftToUpdate(d: Draft): ProductUpdate {
-  return draftToInsert(d)
-}
-
-function parsePickWeightDraft(s: string): number {
+function parsePickWeight(s: string): number {
   const t = s.trim().replace(',', '.')
   if (t === '') return 1
   const n = Number(t)
@@ -119,19 +99,80 @@ function parsePickWeightDraft(s: string): number {
   return n
 }
 
-const COMMENT_MAX_CH = 36
+function gridRowToInsert(r: ProductGridRow, profileId: string): ProductInsert {
+  return {
+    profile_id: profileId,
+    internal_code: r.internal_code.trim() || null,
+    name: r.name.trim(),
+    category: r.category,
+    portion_label: r.portion_label.trim() || '100 g',
+    price: Number(r.price) || 0,
+    pick_weight: parsePickWeight(r.pick_weight),
+    calories: Number(r.calories) || 0,
+    protein: Number(r.protein) || 0,
+    fat: Number(r.fat) || 0,
+    carbs: Number(r.carbs) || 0,
+    fiber: Number(r.fiber) || 0,
+    sugar: Number(r.sugar) || 0,
+    storage_hours: r.storage_hours.trim() === '' ? null : Number(r.storage_hours),
+    comment: r.comment.trim() || null,
+    is_active: r.is_active,
+  }
+}
+
+function gridRowToUpdate(r: ProductGridRow): ProductUpdate {
+  return {
+    internal_code: r.internal_code.trim() || null,
+    name: r.name.trim(),
+    category: r.category,
+    portion_label: r.portion_label.trim() || '100 g',
+    price: Number(r.price) || 0,
+    pick_weight: parsePickWeight(r.pick_weight),
+    calories: Number(r.calories) || 0,
+    protein: Number(r.protein) || 0,
+    fat: Number(r.fat) || 0,
+    carbs: Number(r.carbs) || 0,
+    fiber: Number(r.fiber) || 0,
+    sugar: Number(r.sugar) || 0,
+    storage_hours: r.storage_hours.trim() === '' ? null : Number(r.storage_hours),
+    comment: r.comment.trim() || null,
+    is_active: r.is_active,
+  }
+}
+
+function gridRowsEqual(a: ProductGridRow, b: ProductGridRow): boolean {
+  return (
+    a.internal_code === b.internal_code &&
+    a.name === b.name &&
+    a.category === b.category &&
+    a.portion_label === b.portion_label &&
+    a.price === b.price &&
+    a.pick_weight === b.pick_weight &&
+    a.calories === b.calories &&
+    a.protein === b.protein &&
+    a.fat === b.fat &&
+    a.carbs === b.carbs &&
+    a.fiber === b.fiber &&
+    a.sugar === b.sugar &&
+    a.storage_hours === b.storage_hours &&
+    a.comment === b.comment &&
+    a.is_active === b.is_active
+  )
+}
 
 function ProductRowMenu({
-  product,
-  onEdit,
+  row,
+  disabled,
   onToggleArchive,
   onDuplicate,
+  onRemoveNew,
   duplicatePending,
 }: {
-  product: ProductRow
-  onEdit: () => void
+  row: ProductGridRow
+  disabled: boolean
   onToggleArchive: () => void
   onDuplicate: () => void
+  onRemoveNew: () => void
   duplicatePending: boolean
 }) {
   const [open, setOpen] = useState(false)
@@ -155,46 +196,52 @@ function ProductRowMenu({
         aria-label="Действия с продуктом"
         aria-expanded={open}
         aria-haspopup="true"
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
         ⋯
       </button>
       {open ? (
         <div className="row-menu-dropdown" role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            className="row-menu-item"
-            onClick={() => {
-              setOpen(false)
-              onEdit()
-            }}
-          >
-            Изменить
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="row-menu-item"
-            onClick={() => {
-              setOpen(false)
-              onToggleArchive()
-            }}
-          >
-            {product.is_active ? 'В архив' : 'Вернуть'}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="row-menu-item"
-            disabled={duplicatePending}
-            onClick={() => {
-              setOpen(false)
-              onDuplicate()
-            }}
-          >
-            Дублировать
-          </button>
+          {row.isNew ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="row-menu-item"
+              onClick={() => {
+                setOpen(false)
+                onRemoveNew()
+              }}
+            >
+              Удалить строку
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className="row-menu-item"
+                onClick={() => {
+                  setOpen(false)
+                  onToggleArchive()
+                }}
+              >
+                {row.is_active ? 'В архив' : 'Вернуть'}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="row-menu-item"
+                disabled={duplicatePending}
+                onClick={() => {
+                  setOpen(false)
+                  onDuplicate()
+                }}
+              >
+                Дублировать
+              </button>
+            </>
+          )}
         </div>
       ) : null}
     </div>
@@ -205,10 +252,12 @@ export function ProductsPage() {
   const { activeProfile } = useProfile()
   const qc = useQueryClient()
   const [showArchived, setShowArchived] = useState(false)
-  const [modal, setModal] = useState<'create' | 'edit' | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<Draft>(emptyDraft)
-  const [formError, setFormError] = useState<string | null>(null)
+  const [gridRows, setGridRows] = useState<ProductGridRow[]>([])
+  const [dirty, setDirty] = useState(false)
+  const baselineRef = useRef<ProductGridRow[]>([])
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const gridRowsRef = useRef(gridRows)
+  gridRowsRef.current = gridRows
 
   const profileId = activeProfile!.id
 
@@ -228,215 +277,305 @@ export function ProductsPage() {
     },
   })
 
-  const insertMut = useMutation({
-    mutationFn: async (payload: ProductInsert) => {
-      const { error } = await getSupabase().from('products').insert(payload)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  })
+  useEffect(() => {
+    if (dirty) return
+    const raw = productsQuery.data
+    if (raw === undefined) return
+    const g = raw.map(serverRowToGrid)
+    setGridRows(g)
+    baselineRef.current = structuredClone(g)
+  }, [productsQuery.data, dirty, showArchived, profileId])
 
-  const updateMut = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: ProductUpdate }) => {
-      const { error } = await getSupabase().from('products').update(patch).eq('id', id)
-      if (error) throw error
+  const updateCell = useCallback(
+    (id: string, partial: Partial<ProductGridRow>) => {
+      setGridRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...partial } : r)))
+      setDirty(true)
+      setSaveError(null)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  })
+    [],
+  )
 
-  const duplicateMut = useMutation({
-    mutationFn: async (p: ProductRow) => {
-      const insert: ProductInsert = {
-        profile_id: profileId,
-        internal_code: null,
-        name: `${p.name} (копия)`,
-        category: p.category,
-        portion_label: p.portion_label,
-        price: Number(p.price),
-        calories: Number(p.calories),
-        protein: Number(p.protein),
-        fat: Number(p.fat),
-        carbs: Number(p.carbs),
-        fiber: Number(p.fiber),
-        sugar: Number(p.sugar),
-        storage_hours: p.storage_hours,
-        comment: p.comment,
-        pick_weight: Number.isFinite(Number(p.pick_weight)) ? Number(p.pick_weight) : 1,
+  const addRow = useCallback(() => {
+    setGridRows((prev) => [...prev, emptyGridRow()])
+    setDirty(true)
+    setSaveError(null)
+  }, [])
+
+  const removeNewRow = useCallback((id: string) => {
+    setGridRows((prev) => prev.filter((r) => r.id !== id))
+    setDirty(true)
+    setSaveError(null)
+  }, [])
+
+  const duplicateRow = useCallback((id: string) => {
+    setGridRows((prev) => {
+      const src = prev.find((r) => r.id === id)
+      if (!src) return prev
+      const copy: ProductGridRow = {
+        ...src,
+        id: newRowId(),
+        isNew: true,
+        internal_code: '',
+        name: `${src.name.trim()} (копия)`,
         is_active: true,
       }
-      const { error } = await getSupabase().from('products').insert(insert)
-      if (error) throw error
+      return [...prev, copy]
+    })
+    setDirty(true)
+    setSaveError(null)
+  }, [])
+
+  const toggleArchive = useCallback((id: string) => {
+    setGridRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, is_active: !r.is_active } : r)),
+    )
+    setDirty(true)
+    setSaveError(null)
+  }, [])
+
+  const revertChanges = useCallback(() => {
+    setGridRows(structuredClone(baselineRef.current))
+    setDirty(false)
+    setSaveError(null)
+  }, [])
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const rows = gridRowsRef.current
+      const baselineMap = new Map(baselineRef.current.map((r) => [r.id, r]))
+      for (const r of rows) {
+        if (!r.name.trim()) throw new Error('У каждой строки должно быть название.')
+        const pwRaw = r.pick_weight.trim().replace(',', '.')
+        if (pwRaw !== '') {
+          const n = Number(pwRaw)
+          if (!Number.isFinite(n) || n < 0) throw new Error(`Вес подбора ≥ 0: «${r.name || r.id}».`)
+        }
+      }
+
+      const sb = getSupabase()
+      const toInsert = rows.filter((r) => r.isNew).map((r) => gridRowToInsert(r, profileId))
+
+      const updates: { id: string; patch: ProductUpdate }[] = []
+      for (const r of rows) {
+        if (r.isNew) continue
+        const b = baselineMap.get(r.id)
+        if (!b || !gridRowsEqual(r, b)) {
+          updates.push({ id: r.id, patch: gridRowToUpdate(r) })
+        }
+      }
+
+      if (toInsert.length) {
+        const { error } = await sb.from('products').insert(toInsert)
+        if (error) throw error
+      }
+
+      await Promise.all(
+        updates.map(({ id, patch }) => sb.from('products').update(patch).eq('id', id).then(({ error }) => {
+          if (error) throw error
+        })),
+      )
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['products'] })
+      await qc.refetchQueries({ queryKey: ['products', showArchived, profileId] })
+      setDirty(false)
+      setSaveError(null)
+    },
+    onError: (e) => {
+      setSaveError(e instanceof Error ? e.message : 'Ошибка сохранения')
+    },
   })
 
-  const columns = useMemo<ColumnDef<ProductRow>[]>(
+  const busy = productsQuery.isLoading || productsQuery.isFetching
+
+  const columns = useMemo<ColumnDef<ProductGridRow>[]>(
     () => [
+      {
+        header: 'Код',
+        accessorKey: 'internal_code',
+        meta: { tdClass: 'td-tight' },
+        cell: ({ row }) => (
+          <input
+            className="cell-input"
+            value={row.original.internal_code}
+            aria-label="Внутренний код"
+            onChange={(e) => updateCell(row.original.id, { internal_code: e.target.value })}
+          />
+        ),
+      },
       {
         header: 'Название',
         accessorKey: 'name',
         cell: ({ row }) => (
-          <span className={row.original.is_active ? '' : 'muted'}>{row.original.name}</span>
+          <input
+            className="cell-input cell-input--wide"
+            value={row.original.name}
+            aria-label="Название"
+            onChange={(e) => updateCell(row.original.id, { name: e.target.value })}
+          />
         ),
       },
       {
         header: 'Категория',
         accessorKey: 'category',
-        cell: ({ getValue }) => CATEGORY_LABELS[getValue() as ProductCategory],
+        cell: ({ row }) => (
+          <select
+            className="cell-input cell-select"
+            value={row.original.category}
+            aria-label="Категория"
+            onChange={(e) =>
+              updateCell(row.original.id, { category: e.target.value as ProductCategory })
+            }
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        ),
       },
       {
         header: 'Вес',
         accessorKey: 'pick_weight',
         meta: { tdClass: 'td-num' },
-        cell: ({ getValue }) => {
-          const v = Number(getValue())
-          if (!Number.isFinite(v)) return '—'
-          return v === 0 ? '0' : v >= 0.0001 ? String(v) : v.toExponential(1)
-        },
+        cell: ({ row }) => (
+          <input
+            className="cell-input cell-input-num"
+            inputMode="decimal"
+            value={row.original.pick_weight}
+            aria-label="Вес подбора"
+            onChange={(e) => updateCell(row.original.id, { pick_weight: e.target.value })}
+          />
+        ),
+      },
+      {
+        header: 'Порция',
+        accessorKey: 'portion_label',
+        cell: ({ row }) => (
+          <input
+            className="cell-input"
+            value={row.original.portion_label}
+            aria-label="Порция"
+            onChange={(e) => updateCell(row.original.id, { portion_label: e.target.value })}
+          />
+        ),
       },
       {
         header: 'Цена',
         accessorKey: 'price',
-        cell: ({ getValue }) => formatMoney(Number(getValue())),
+        meta: { tdClass: 'td-num' },
+        cell: ({ row }) => (
+          <input
+            className="cell-input cell-input-num"
+            inputMode="decimal"
+            value={row.original.price}
+            aria-label="Цена"
+            onChange={(e) => updateCell(row.original.id, { price: e.target.value })}
+          />
+        ),
       },
-      { header: 'ккал', accessorKey: 'calories' },
-      { header: 'Б', accessorKey: 'protein' },
-      { header: 'Ж', accessorKey: 'fat' },
-      { header: 'У', accessorKey: 'carbs' },
+      { header: 'ккал', accessorKey: 'calories', meta: { tdClass: 'td-num' }, cell: numCell('calories', updateCell) },
+      { header: 'Б', accessorKey: 'protein', meta: { tdClass: 'td-num' }, cell: numCell('protein', updateCell) },
+      { header: 'Ж', accessorKey: 'fat', meta: { tdClass: 'td-num' }, cell: numCell('fat', updateCell) },
+      { header: 'У', accessorKey: 'carbs', meta: { tdClass: 'td-num' }, cell: numCell('carbs', updateCell) },
+      { header: 'Кл', accessorKey: 'fiber', meta: { tdClass: 'td-num' }, cell: numCell('fiber', updateCell) },
+      { header: 'Сах', accessorKey: 'sugar', meta: { tdClass: 'td-num' }, cell: numCell('sugar', updateCell) },
       {
-        header: 'Хранение, ч',
+        header: 'Ч хран',
         accessorKey: 'storage_hours',
-        cell: ({ getValue }) => {
-          const v = getValue() as number | null
-          return v ?? '—'
-        },
+        meta: { tdClass: 'td-num' },
+        cell: ({ row }) => (
+          <input
+            className="cell-input cell-input-num"
+            inputMode="numeric"
+            value={row.original.storage_hours}
+            aria-label="Часы хранения"
+            onChange={(e) => updateCell(row.original.id, { storage_hours: e.target.value })}
+          />
+        ),
       },
       {
-        header: 'Комментарий',
+        header: 'Комм.',
         accessorKey: 'comment',
-        cell: ({ getValue }) => {
-          const t = (getValue() as string | null) ?? ''
-          if (!t.trim()) {
-            return (
-              <span className="comment-truncate comment-truncate--empty" title="">
-                —
-              </span>
-            )
-          }
-          const short =
-            t.length > COMMENT_MAX_CH ? `${t.slice(0, COMMENT_MAX_CH)}…` : t
-          return (
-            <span className="comment-truncate" title={t}>
-              {short}
-            </span>
-          )
-        },
+        cell: ({ row }) => (
+          <input
+            className="cell-input"
+            value={row.original.comment}
+            aria-label="Комментарий"
+            onChange={(e) => updateCell(row.original.id, { comment: e.target.value })}
+          />
+        ),
+      },
+      {
+        header: '✓',
+        id: 'active',
+        meta: { tdClass: 'td-center' },
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={row.original.is_active}
+            aria-label="Активен"
+            title="Активен"
+            onChange={(e) => updateCell(row.original.id, { is_active: e.target.checked })}
+          />
+        ),
       },
       {
         header: '',
         id: 'actions',
         meta: { tdClass: 'td-actions' },
-        cell: ({ row }) => {
-          const p = row.original
-          return (
-            <ProductRowMenu
-              product={p}
-              duplicatePending={duplicateMut.isPending}
-              onEdit={() => {
-                setEditingId(p.id)
-                setDraft(rowToDraft(p))
-                setFormError(null)
-                setModal('edit')
-              }}
-              onToggleArchive={() =>
-                updateMut.mutate({ id: p.id, patch: { is_active: !p.is_active } })
-              }
-              onDuplicate={() => duplicateMut.mutate(p)}
-            />
-          )
-        },
+        cell: ({ row }) => (
+          <ProductRowMenu
+            row={row.original}
+            disabled={saveMut.isPending}
+            duplicatePending={saveMut.isPending}
+            onToggleArchive={() => toggleArchive(row.original.id)}
+            onDuplicate={() => duplicateRow(row.original.id)}
+            onRemoveNew={() => removeNewRow(row.original.id)}
+          />
+        ),
       },
     ],
-    [updateMut.isPending, duplicateMut.isPending, profileId],
+    [updateCell, duplicateRow, removeNewRow, toggleArchive, saveMut.isPending],
   )
 
   const table = useReactTable({
-    data: productsQuery.data ?? [],
+    data: gridRows,
     columns,
     getCoreRowModel: getCoreRowModel(),
   })
 
-  function closeModal() {
-    setModal(null)
-    setEditingId(null)
-    setDraft(emptyDraft())
-    setFormError(null)
-  }
-
-  async function submitForm(e: React.FormEvent) {
-    e.preventDefault()
-    setFormError(null)
-    try {
-      if (!draft.name.trim()) {
-        setFormError('Укажите название')
-        return
-      }
-      const pwRaw = draft.pick_weight.trim().replace(',', '.')
-      if (pwRaw !== '') {
-        const n = Number(pwRaw)
-        if (!Number.isFinite(n) || n < 0) {
-          setFormError('Вес подбора: число ≥ 0 или пусто (= 1).')
-          return
-        }
-      }
-      if (modal === 'create') {
-        await insertMut.mutateAsync({ ...draftToInsert(draft), profile_id: profileId })
-      } else if (modal === 'edit' && editingId) {
-        await updateMut.mutateAsync({ id: editingId, patch: draftToUpdate(draft) })
-      }
-      closeModal()
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Ошибка сохранения')
-    }
-  }
-
-  const busy = productsQuery.isLoading || productsQuery.isFetching
-
   return (
-    <div className="page">
+    <div className="page products-sheet-page">
       <div className="page-head">
         <h1>Продукты</h1>
         <div className="row">
-          <label className="inline-check">
+          <label className="inline-check" title={dirty ? 'Сначала сохраните или отмените изменения' : ''}>
             <input
               type="checkbox"
               checked={showArchived}
+              disabled={dirty}
               onChange={(e) => setShowArchived(e.target.checked)}
             />
             Показать архив
           </label>
-          <button
-            type="button"
-            className="btn primary"
-            onClick={() => {
-              setEditingId(null)
-              setDraft(emptyDraft())
-              setFormError(null)
-              setModal('create')
-            }}
-          >
-            Добавить
+          <button type="button" className="btn primary" disabled={busy || saveMut.isPending} onClick={addRow}>
+            Добавить строку
           </button>
         </div>
       </div>
+      <p className="muted small">
+        Редактирование в таблице — изменения только локально, пока не нажмёте «Сохранить изменения» внизу.
+      </p>
 
       {productsQuery.error ? (
         <p className="error">{(productsQuery.error as Error).message}</p>
       ) : null}
 
-      <div className="table-wrap">
+      <div className="table-wrap products-sheet-wrap">
         {busy ? <p className="muted">Загрузка…</p> : null}
-        <table className="table">
+        <table className="table products-sheet">
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
@@ -448,10 +587,12 @@ export function ProductsPage() {
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                className={row.original.isNew ? 'products-sheet-row--new' : undefined}
+              >
                 {row.getVisibleCells().map((cell) => {
-                  const tdClass = (cell.column.columnDef.meta as { tdClass?: string } | undefined)
-                    ?.tdClass
+                  const tdClass = (cell.column.columnDef.meta as { tdClass?: string } | undefined)?.tdClass
                   return (
                     <td key={cell.id} className={tdClass}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -462,172 +603,53 @@ export function ProductsPage() {
             ))}
           </tbody>
         </table>
-        {!busy && table.getRowModel().rows.length === 0 ? (
-          <p className="muted">Нет продуктов. Добавьте первую позицию.</p>
+        {!busy && !gridRows.length ? (
+          <p className="muted">Нет продуктов. Нажмите «Добавить строку».</p>
         ) : null}
       </div>
 
-      {modal ? (
-        <div className="modal-backdrop" role="presentation" onClick={closeModal}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2>{modal === 'create' ? 'Новый продукт' : 'Редактирование'}</h2>
-            <form className="stack product-form" onSubmit={submitForm}>
-              <label className="field">
-                <span>Внутренний код</span>
-                <input
-                  value={draft.internal_code}
-                  onChange={(e) => setDraft({ ...draft, internal_code: e.target.value })}
-                  placeholder="опционально"
-                />
-              </label>
-              <label className="field">
-                <span>Название</span>
-                <input
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>Категория</span>
-                <select
-                  value={draft.category}
-                  onChange={(e) =>
-                    setDraft({ ...draft, category: e.target.value as ProductCategory })
-                  }
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {CATEGORY_LABELS[c]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Порция</span>
-                <input
-                  value={draft.portion_label}
-                  onChange={(e) => setDraft({ ...draft, portion_label: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>Вес в подборе (генератор)</span>
-                <input
-                  inputMode="decimal"
-                  value={draft.pick_weight}
-                  onChange={(e) => setDraft({ ...draft, pick_weight: e.target.value })}
-                  placeholder="1"
-                />
-                <span className="muted small">
-                  Относительная частота: 1 — как обычно; выше — чаще (напр. 80); ниже — реже (0.001); 0 —
-                  не предлагать.
-                </span>
-              </label>
-              <div className="grid-3">
-                <label className="field">
-                  <span>Цена</span>
-                  <input
-                    inputMode="decimal"
-                    value={draft.price}
-                    onChange={(e) => setDraft({ ...draft, price: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>ккал</span>
-                  <input
-                    inputMode="decimal"
-                    value={draft.calories}
-                    onChange={(e) => setDraft({ ...draft, calories: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>Хранение (ч)</span>
-                  <input
-                    inputMode="numeric"
-                    value={draft.storage_hours}
-                    onChange={(e) => setDraft({ ...draft, storage_hours: e.target.value })}
-                    placeholder="пусто"
-                  />
-                </label>
-              </div>
-              <div className="grid-3">
-                <label className="field">
-                  <span>Белок</span>
-                  <input
-                    inputMode="decimal"
-                    value={draft.protein}
-                    onChange={(e) => setDraft({ ...draft, protein: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>Жиры</span>
-                  <input
-                    inputMode="decimal"
-                    value={draft.fat}
-                    onChange={(e) => setDraft({ ...draft, fat: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>Углеводы</span>
-                  <input
-                    inputMode="decimal"
-                    value={draft.carbs}
-                    onChange={(e) => setDraft({ ...draft, carbs: e.target.value })}
-                  />
-                </label>
-              </div>
-              <div className="grid-2">
-                <label className="field">
-                  <span>Клетчатка</span>
-                  <input
-                    inputMode="decimal"
-                    value={draft.fiber}
-                    onChange={(e) => setDraft({ ...draft, fiber: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>Сахар</span>
-                  <input
-                    inputMode="decimal"
-                    value={draft.sugar}
-                    onChange={(e) => setDraft({ ...draft, sugar: e.target.value })}
-                  />
-                </label>
-              </div>
-              <label className="field">
-                <span>Комментарий</span>
-                <textarea
-                  rows={2}
-                  value={draft.comment}
-                  onChange={(e) => setDraft({ ...draft, comment: e.target.value })}
-                />
-              </label>
-              <label className="inline-check">
-                <input
-                  type="checkbox"
-                  checked={draft.is_active}
-                  onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })}
-                />
-                Активен
-              </label>
-              {formError ? <p className="error">{formError}</p> : null}
-              <div className="row end">
-                <button type="button" className="btn ghost" onClick={closeModal}>
-                  Отмена
-                </button>
-                <button type="submit" className="btn primary" disabled={insertMut.isPending || updateMut.isPending}>
-                  Сохранить
-                </button>
-              </div>
-            </form>
+      {dirty ? (
+        <div className="save-snackbar" role="status" aria-live="polite">
+          <span className="save-snackbar-text">Есть несохранённые изменения</span>
+          {saveError ? <span className="error save-snackbar-error">{saveError}</span> : null}
+          <div className="save-snackbar-actions">
+            <button type="button" className="btn ghost" disabled={saveMut.isPending} onClick={revertChanges}>
+              Отменить
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={saveMut.isPending}
+              onClick={() => {
+                setSaveError(null)
+                saveMut.mutate()
+              }}
+            >
+              {saveMut.isPending ? 'Сохранение…' : 'Сохранить изменения'}
+            </button>
           </div>
         </div>
       ) : null}
     </div>
   )
+}
+
+function numCell(
+  key: keyof Pick<
+    ProductGridRow,
+    'calories' | 'protein' | 'fat' | 'carbs' | 'fiber' | 'sugar'
+  >,
+  updateCell: (id: string, partial: Partial<ProductGridRow>) => void,
+) {
+  return function Cell({ row }: { row: { original: ProductGridRow } }) {
+    return (
+      <input
+        className="cell-input cell-input-num"
+        inputMode="decimal"
+        value={row.original[key]}
+        aria-label={String(key)}
+        onChange={(e) => updateCell(row.original.id, { [key]: e.target.value } as Partial<ProductGridRow>)}
+      />
+    )
+  }
 }
