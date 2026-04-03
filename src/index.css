@@ -385,6 +385,12 @@ textarea:focus {
   border-spacing: 0;
 }
 
+/* Плотнее, чем общий .table — меньше «мёртвого» поля, больше зона клика по инпутам */
+.products-sheet th,
+.products-sheet td {
+  padding: 0.3rem 0.35rem;
+}
+
 /*
  * Sticky на каждом th даёт наложение на первую строку tbody (баг раскладки таблицы).
  * Вешаем на thead целиком.
@@ -414,7 +420,7 @@ textarea:focus {
   min-width: 3rem;
   max-width: 100%;
   margin: 0;
-  padding: 0.35rem 0.45rem;
+  padding: 0.28rem 0.38rem;
   font-size: 0.86rem;
   background: color-mix(in oklab, var(--bg) 55%, transparent);
   border: 1px solid transparent;
