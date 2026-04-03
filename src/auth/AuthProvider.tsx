@@ -24,6 +24,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null)
       setLoading(false)
@@ -41,14 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     loading,
     signIn: async (email, password) => {
+      if (!supabase) throw new Error('Supabase не настроен')
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
     },
     signUp: async (email, password) => {
+      if (!supabase) throw new Error('Supabase не настроен')
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) throw error
     },
     signOut: async () => {
+      if (!supabase) return
       const { error } = await supabase.auth.signOut()
       if (error) throw error
     },

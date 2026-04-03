@@ -6,7 +6,7 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase'
+import { getSupabase } from '../lib/supabase'
 import type { ProductCategory, ProductInsert, ProductRow, ProductUpdate } from '../lib/types'
 
 const CATEGORY_LABELS: Record<ProductCategory, string> = {
@@ -116,7 +116,8 @@ export function ProductsPage() {
   const productsQuery = useQuery({
     queryKey: ['products', showArchived],
     queryFn: async () => {
-      let q = supabase.from('products').select('*').order('name', { ascending: true })
+      const sb = getSupabase()
+      let q = sb.from('products').select('*').order('name', { ascending: true })
       if (!showArchived) q = q.eq('is_active', true)
       const { data, error } = await q
       if (error) throw error
@@ -126,7 +127,7 @@ export function ProductsPage() {
 
   const insertMut = useMutation({
     mutationFn: async (payload: ProductInsert) => {
-      const { error } = await supabase.from('products').insert(payload)
+      const { error } = await getSupabase().from('products').insert(payload)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
@@ -134,7 +135,7 @@ export function ProductsPage() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: ProductUpdate }) => {
-      const { error } = await supabase.from('products').update(patch).eq('id', id)
+      const { error } = await getSupabase().from('products').update(patch).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
@@ -158,7 +159,7 @@ export function ProductsPage() {
         comment: p.comment,
         is_active: true,
       }
-      const { error } = await supabase.from('products').insert(insert)
+      const { error } = await getSupabase().from('products').insert(insert)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
