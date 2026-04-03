@@ -683,39 +683,41 @@ export function ProductsPage() {
 
       <div className="table-wrap products-sheet-wrap">
         {busy ? <p className="muted">Загрузка…</p> : null}
-        <table className="table products-sheet">
-          <thead>
-            {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id}>
-                {hg.headers.map((h) => {
-                  const thTitle = (h.column.columnDef.meta as { thTitle?: string } | undefined)?.thTitle
-                  return (
-                    <th key={h.id} title={thTitle}>
-                      {flexRender(h.column.columnDef.header, h.getContext())}
-                    </th>
-                  )
-                })}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className={row.original.isNew ? 'products-sheet-row--new' : undefined}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const tdClass = (cell.column.columnDef.meta as { tdClass?: string } | undefined)?.tdClass
-                  return (
-                    <td key={cell.id} className={tdClass}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="products-sheet-hscroll">
+          <table className="table products-sheet">
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  {hg.headers.map((h) => {
+                    const thTitle = (h.column.columnDef.meta as { thTitle?: string } | undefined)?.thTitle
+                    return (
+                      <th key={h.id} title={thTitle}>
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                      </th>
+                    )
+                  })}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className={row.original.isNew ? 'products-sheet-row--new' : undefined}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const tdClass = (cell.column.columnDef.meta as { tdClass?: string } | undefined)?.tdClass
+                    return (
+                      <td key={cell.id} className={tdClass}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {!busy && !gridRows.length ? (
           <p className="muted">Нет продуктов. Нажмите «Добавить строку».</p>
         ) : null}

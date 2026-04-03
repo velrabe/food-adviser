@@ -12,6 +12,14 @@
   --radius: 10px;
   --font: 'Instrument Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', Consolas, monospace;
+  /* Высота липкого сайт-хедера: шапка таблицы залипает ниже него */
+  --app-sticky-header-height: 4.75rem;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --app-sticky-header-height: 6.25rem;
+  }
 }
 
 *,
@@ -361,8 +369,25 @@ textarea:focus {
   margin-top: 0.5rem;
 }
 
-.products-sheet th {
+/* Иначе overflow-x на .table-wrap ломает sticky при прокрутке страницы */
+.table-wrap.products-sheet-wrap {
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+.products-sheet-hscroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.products-sheet thead th {
+  position: sticky;
+  top: var(--app-sticky-header-height);
+  z-index: 9;
   font-size: 0.8rem;
+  background: var(--surface);
+  background-clip: padding-box;
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .products-sheet-row--new {
