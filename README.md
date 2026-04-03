@@ -70,6 +70,10 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Безопасность:** любой, у кого есть URL сайта и ваш **anon** ключ (он в JS), может читать и менять все данные. Нормально только для личного пет-проекта. Для публичного продукта нужны логин и строгие RLS.
 
+### Импорт продуктов из скриншотов меню
+
+В репозитории есть `supabase/seed_products_from_menu.sql` — позиции и цены сняты со скринов в `products-img` (меню «Create your own meal», цены как в приложении: 15.400 → 15400 в базе). Выполните файл в **SQL Editor** (один раз; повтор — дубли, либо сначала `DELETE FROM products WHERE internal_code LIKE 'grab-%';`).
+
 ## Продакшен на GitHub Pages
 
 После пуша в `main` workflow **Deploy to GitHub Pages** собирает и публикует сайт.

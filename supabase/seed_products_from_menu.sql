@@ -1,0 +1,148 @@
+-- Продукты из скриншотов меню (папка products-img).
+-- Выполнить в Supabase SQL Editor ПОСЛЕ миграций.
+-- Строки попадут в самый ранний профиль (обычно «Основной»).
+-- Повторный запуск даст дубли по internal_code — при необходимости сначала:
+-- DELETE FROM public.products WHERE internal_code LIKE 'grab-%';
+
+INSERT INTO public.products (
+  profile_id,
+  internal_code,
+  name,
+  category,
+  portion_label,
+  price,
+  calories,
+  protein,
+  fat,
+  carbs,
+  fiber,
+  sugar,
+  storage_hours,
+  comment,
+  is_active
+)
+SELECT
+  (SELECT id FROM public.profiles ORDER BY created_at LIMIT 1),
+  v.internal_code,
+  v.name,
+  v.category,
+  v.portion_label,
+  v.price,
+  v.calories,
+  v.protein,
+  v.fat,
+  v.carbs,
+  v.fiber,
+  v.sugar,
+  v.storage_hours,
+  v.comment,
+  v.is_active
+FROM (
+  VALUES
+  -- Углеводы (крахмал / крупы)
+  ('grab-c01', 'Quinoa', 'carbs', '100 g', 15400, 117, 4, 2, 21, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-c02', 'Quinoa', 'carbs', '200 g', 30800, 234, 8, 4, 42, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-c03', 'Brown rice', 'carbs', '100 g', 7700, 110, 3, 1, 23, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-c04', 'Brown rice', 'carbs', '200 g', 15400, 221, 5, 2, 46, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-c05', 'Sweet potato', 'carbs', '100 g', 12100, 93, 2, 0, 21, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-c06', 'Sweet potato', 'carbs', '200 g', 24200, 186, 4, 0, 42, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-c07', 'Jasmine white rice', 'carbs', '100 g', 7700, 124, 2, 0, 28, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-c08', 'Jasmine white rice', 'carbs', '200 g', 15400, 247, 5, 1, 56, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+
+  -- Овощи / фрукты в салатной секции
+  ('grab-veg01', 'Spinach', 'veg', '30 g', 12000, 7, 1, 0, 1, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg02', 'Kale', 'veg', '30 g', 12000, 15, 1, 1, 3, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg03', 'Arugula (rocket)', 'veg', '30 g', 12000, 9, 1, 0, 1, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg04', 'Lettuce mix', 'veg', '60 g', 9900, 14, 1, 0, 2, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg05', 'Pineapple', 'veg', '50 g', 9900, 28, 0, 0, 7, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg06', 'Pineapple', 'veg', '100 g', 19800, 56, 1, 0, 13, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg07', 'Broccoli', 'veg', '50 g', 9900, 21, 1, 0, 4, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg08', 'Broccoli', 'veg', '100 g', 19800, 41, 2, 0, 7, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg09', 'Avocado', 'veg', '30 g', 9900, 52, 1, 4, 3, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg10', 'Avocado', 'veg', '60 g', 19800, 104, 1, 9, 5, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg11', 'Purple cabbage', 'veg', '50 g', 9900, 19, 1, 0, 4, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg12', 'Purple cabbage', 'veg', '100 g', 19800, 37, 1, 0, 8, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg13', 'Pickled red onion', 'veg', '30 g', 9900, 5, 0, 0, 1, 0, 0, 120, 'Ккал в меню неполные; оценка', true),
+  ('grab-veg14', 'Bell pepper & onion', 'veg', '50 g', 9900, 41, 1, 0, 9, 0, 0, 48, 'Углеводы оценочно', true),
+  ('grab-veg15', 'Bell pepper & onion', 'veg', '100 g', 19800, 80, 2, 1, 15, 0, 0, 48, 'БЖУ частично с экрана', true),
+  ('grab-veg16', 'Carrot', 'veg', '40 g', 9900, 15, 0, 0, 3, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg17', 'Sweet corn', 'veg', '50 g', 9900, 56, 2, 1, 11, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg18', 'Sweet corn', 'veg', '100 g', 19800, 111, 3, 2, 21, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg19', 'Tomato', 'veg', '50 g', 9900, 11, 1, 0, 2, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg20', 'Tomato', 'veg', '100 g', 19800, 21, 1, 0, 4, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg21', 'Tomato & cucumber salad', 'veg', '100 g', 19800, 22, 1, 0, 5, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg22', 'Mango', 'veg', '40 g', 9900, 33, 0, 0, 8, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg23', 'Mango', 'veg', '80 g', 19800, 53, 1, 0, 12, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg24', 'Apple', 'veg', '40 g', 9900, 24, 0, 0, 6, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg25', 'Apple', 'veg', '80 g', 19800, 47, 0, 0, 11, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg26', 'Taco chips', 'carbs', '15 g', 9900, 71, 1, 3, 9, 0, 0, 120, 'Скрин меню Create Your Own Meal', true),
+  ('grab-veg27', 'Taco chips', 'carbs', '30 g', 19800, 143, 2, 7, 18, 0, 0, 120, 'Скрин меню Create Your Own Meal', true),
+
+  -- Белок
+  ('grab-p01', 'Free-range egg', 'protein', '1 pc', 8800, 75, 6, 5, 1, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p02', 'Free-range egg', 'protein', '2 pc', 17600, 150, 13, 10, 1, 0, 0, 48, 'Жиры оценочно (строка обрезана)', true),
+  ('grab-p03', 'Chicken breast', 'protein', '35 g', 15400, 60, 23, 2, 0, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p04', 'Chicken breast', 'protein', '70 g', 29700, 121, 23, 3, 0, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p05', 'Chicken breast', 'protein', '140 g', 55000, 241, 47, 6, 0, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p06', 'Beef', 'protein', '40 g', 44000, 97, 10, 7, 0, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p07', 'Beef', 'protein', '80 g', 88000, 194, 19, 13, 0, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p08', 'Salmon', 'protein', '40 g', 55000, 81, 9, 5, 0, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p09', 'Salmon', 'protein', '80 g', 110000, 162, 17, 10, 0, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p10', 'Falafel (fried)', 'protein', '4 pc', 29700, 196, 7, 9, 22, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p11', 'Falafel (fried)', 'protein', '8 pc', 55000, 392, 14, 18, 44, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p12', 'Falafel (baked)', 'protein', '4 pc', 29700, 137, 7, 2, 23, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p13', 'Falafel (baked)', 'protein', '8 pc', 55000, 274, 14, 4, 46, 0, 0, 48, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p14', 'Green lentils', 'protein', '50 g', 11000, 60, 5, 0, 10, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p15', 'Green lentils', 'protein', '100 g', 22000, 120, 9, 0, 20, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p16', 'Chickpeas', 'protein', '50 g', 9900, 85, 5, 1, 14, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p17', 'Chickpeas', 'protein', '100 g', 19800, 169, 9, 3, 27, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-p18', 'Black beans', 'protein', '50 g', 9900, 68, 5, 0, 12, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+
+  -- Жиры / орехи / грибы
+  ('grab-f01', 'Mushroom', 'veg', '75 g', 33000, 61, 3, 4, 3, 0, 0, 48, 'Скрин меню Fat section', true),
+  ('grab-f02', 'Almonds', 'fats', '10 g', 9900, 20, 2, 5, 2, 0, 0, 120, 'Скрин меню Create Your Own Meal', true),
+  ('grab-f03', 'Olive oil', 'fats', '40 ml', 11000, 252, 0, 28, 0, 0, 0, 240, 'Скрин меню соусы / добавки', true),
+
+  -- Молочка / сыры
+  ('grab-d01', 'Happy Cow portion cheese', 'dairy', '2 pc', 17600, 69, 4, 5, 2, 0, 0, 120, 'Laughing Cow style', true),
+  ('grab-d02', 'Burrata', 'dairy', '1 pc', 71500, 131, 4, 13, 0, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-d03', 'Burrata', 'dairy', '2 pc', 143000, 262, 7, 26, 0, 0, 0, 24, 'Скрин меню Create Your Own Meal', true),
+  ('grab-d04', 'Parmesan', 'dairy', '15 g', 17600, 65, 6, 4, 1, 0, 0, 120, 'Ккал из текста меню', true),
+  ('grab-d05', 'Goat cheese', 'dairy', '25 g', 27500, 67, 5, 6, 0, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-d06', 'Goat cheese', 'dairy', '50 g', 55000, 134, 9, 11, 0, 0, 0, 72, 'Скрин меню Create Your Own Meal', true),
+  ('grab-d07', 'Parmesan', 'dairy', '30 g', 35200, 129, 11, 9, 1, 0, 0, 120, 'Скрин меню Create Your Own Meal', true),
+  ('grab-d08', 'Cheddar', 'dairy', '12 g', 22000, 49, 3, 4, 0, 0, 0, 120, 'Скрин меню Create Your Own Meal', true),
+  ('grab-d09', 'Cheddar', 'dairy', '24 g', 44000, 97, 6, 8, 0, 0, 0, 120, 'Скрин меню Create Your Own Meal', true),
+  ('grab-d10', 'Sour cream', 'dairy', '40 ml', 13200, 94, 2, 9, 3, 0, 0, 72, 'Скрин меню соусы', true),
+
+  -- Соусы
+  ('grab-s01', 'Garlic sauce', 'sauce', '1 portion', 13200, 229, 0, 25, 1, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s02', 'Guacamole', 'sauce', '100 g', 26400, 148, 2, 12, 8, 0, 0, 24, 'Скрин меню Sauce', true),
+  ('grab-s03', 'Spicy tamarind sauce', 'sauce', '1 portion', 13200, 57, 1, 0, 14, 0, 0, 120, 'Жир в меню не указан', true),
+  ('grab-s04', 'Lime cilantro sauce', 'sauce', '1 portion', 13200, 125, 0, 13, 2, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s05', 'Pesto', 'sauce', '1 portion', 13200, 168, 1, 17, 3, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s06', 'Peanut sauce', 'sauce', '1 portion', 13200, 140, 4, 12, 4, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s07', 'Honey lemon sauce', 'sauce', '1 portion', 13200, 171, 0, 0, 6, 0, 0, 120, 'Жир в меню не указан', true),
+  ('grab-s08', 'Caesar sauce', 'sauce', '1 portion', 13200, 161, 1, 17, 1, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s09', 'Thousand Island', 'sauce', '1 portion', 13200, 133, 0, 12, 6, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s10', 'Korean BBQ sauce', 'sauce', '1 portion', 13200, 181, 2, 9, 23, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s11', 'Chimichurri', 'sauce', '1 portion', 16500, 152, 0, 16, 2, 0, 0, 120, 'Скрин меню Sauce', true),
+  ('grab-s12', 'Spicy mayo', 'sauce', '40 ml', 13200, 113, 0, 8, 10, 0, 0, 120, 'Скрин меню Create Your Own Meal', true),
+  ('grab-s13', 'Lime wedge garnish', 'sauce', '1 pc', 1100, 3, 0, 0, 1, 0, 0, 48, 'Скрин меню garnish', true),
+  ('grab-s14', 'Lemon wedge garnish', 'sauce', '1 pc', 2200, 4, 0, 0, 1, 0, 0, 48, 'В меню помечено недоступно', false)
+) AS v(
+  internal_code text,
+  name text,
+  category text,
+  portion_label text,
+  price numeric,
+  calories numeric,
+  protein numeric,
+  fat numeric,
+  carbs numeric,
+  fiber numeric,
+  sugar numeric,
+  storage_hours int,
+  comment text,
+  is_active boolean
+);
